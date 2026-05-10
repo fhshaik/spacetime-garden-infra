@@ -100,9 +100,22 @@ grafana:
         name: grafana-github-oauth
         key: client_secret
   grafana.ini:
+    server:
+      root_url: https://grafana.spacetimegarden.xyz
     auth:
       disable_login_form: true
-      oauth_auto_login: true
+      oauth_auto_login: false   # show the GitHub button instead of auto-redirect
+    auth.github:
+      enabled: true
+      allow_sign_up: true
+      scopes: "user:email,read:org"
+      auth_url: https://github.com/login/oauth/authorize
+      token_url: https://github.com/login/oauth/access_token
+      api_url: https://api.github.com/user
+      # No allowed_organizations — fhshaik is a personal GitHub account, not an org.
+    users:
+      auto_assign_org: true
+      auto_assign_org_role: Admin
 
 kubeApiServer:
   enabled: true

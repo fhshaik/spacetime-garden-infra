@@ -78,7 +78,13 @@ variable "enable_kubecost" {
 
 # Vocareum-style restricted IAM toggles.
 variable "enable_cert_manager" {
-  description = "Install cert-manager + IRSA + ClusterIssuers. Disable on labs that block iam:CreateRole."
+  description = "Install cert-manager + ClusterIssuers."
+  type        = bool
+  default     = true
+}
+
+variable "cert_manager_dns01_enabled" {
+  description = "Use DNS-01 challenge (requires Route53 IRSA). Set to false for HTTP-01 — works without any AWS IAM, suitable for restricted labs."
   type        = bool
   default     = true
 }
@@ -91,6 +97,12 @@ variable "enable_external_dns" {
 
 variable "enable_external_secrets" {
   description = "Install ESO + IRSA + ClusterSecretStore. Disable on labs that block iam:CreateRole."
+  type        = bool
+  default     = true
+}
+
+variable "enable_loki" {
+  description = "Install Loki + Promtail. Disable in restricted environments where the Helm release times out."
   type        = bool
   default     = true
 }

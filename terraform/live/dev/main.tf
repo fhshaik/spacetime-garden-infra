@@ -336,10 +336,16 @@ module "cluster_bootstrap" {
   alert_email_to   = var.alert_email_to
   alert_email_from = var.alert_email_from
 
-  # Vocareum: skip components that need IRSA/Secrets Manager.
-  enable_cert_manager     = false
-  enable_external_dns     = false
-  enable_external_secrets = false
+  # cert-manager re-enabled with HTTP-01 challenge mode (no IRSA required).
+  # External LE servers fetch /.well-known/acme-challenge/<token> through the
+  # public NLB → ingress-nginx → cert-manager solver pod. Zero AWS API calls.
+  enable_cert_manager        = true
+  cert_manager_dns01_enabled = false   # HTTP-01 mode
+
+  # Still disabled (genuinely need IRSA / not worth the workaround time):
+  enable_external_dns     = false   # using manual Route53 records
+  enable_external_secrets = false   # using kubectl create secret
+  enable_loki             = false   # times out; skipping for demo
 
   tags = local.tags
 

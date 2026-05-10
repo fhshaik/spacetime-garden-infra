@@ -48,9 +48,15 @@ resource "helm_release" "cert_manager" {
     name  = "installCRDs"
     value = "true"
   }
-  set {
-    name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = module.cert_manager_irsa[0].iam_role_arn
+
+  # Only inject IRSA role-arn when DNS-01 is enabled. HTTP-01 doesn't need
+  # cert-manager to talk to AWS at all.
+  dynamic "set" {
+    for_each = var.cert_manager_dns01_enabled ? [1] : []
+    content {
+      name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+      value = module.cert_manager_irsa[0].iam_role_arn
+    }
   }
 
   values = [
@@ -149,8 +155,10 @@ resource "helm_release" "argo_cd" {
           hostname         = "argocd.${var.domain_name}"
           tls              = true
           annotations = {
-            "cert-manager.io/cluster-issuer"               = "letsencrypt-prod"
-            "nginx.ingress.kubernetes.io/backend-protocol" = "HTTPS"
+            "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+            # argo-cd server runs in insecure (HTTP) mode behind ingress;
+            # nginx terminates TLS and forwards HTTP to the pod.
+            "nginx.ingress.kubernetes.io/backend-protocol" = "HTTP"
           }
         }
       }
@@ -278,6 +286,8 @@ resource "helm_release" "kube_prometheus_stack" {
 }
 
 resource "helm_release" "loki" {
+  count = var.enable_loki ? 1 : 0
+
   name             = "loki"
   repository       = "https://grafana.github.io/helm-charts"
   chart            = "loki"
@@ -301,6 +311,8 @@ resource "helm_release" "loki" {
 }
 
 resource "helm_release" "promtail" {
+  count = var.enable_loki ? 1 : 0
+
   name             = "promtail"
   repository       = "https://grafana.github.io/helm-charts"
   chart            = "promtail"
