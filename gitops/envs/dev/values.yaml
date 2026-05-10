@@ -94,6 +94,9 @@ frontend:
     runAsNonRoot: false
     runAsUser: 0
     allowPrivilegeEscalation: false
+    capabilities:
+      drop: []   # nginx needs DAC_OVERRIDE etc; don't drop all caps
+      add: ["NET_BIND_SERVICE", "CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
   healthCheck:
     livenessPath: /
     readinessPath: /
