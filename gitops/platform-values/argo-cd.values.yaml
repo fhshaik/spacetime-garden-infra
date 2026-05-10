@@ -1,0 +1,40 @@
+global:
+  domain: ""
+
+configs:
+  params:
+    server.insecure: "true"
+
+server:
+  replicas: 2
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false   # re-enable after kube-prom-stack CRDs are present
+
+repoServer:
+  replicas: 2
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+
+applicationSet:
+  replicaCount: 1
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+
+controller:
+  replicas: 1
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+
+notifications:
+  enabled: false
+
+dex:
+  enabled: false

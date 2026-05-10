@@ -1,0 +1,95 @@
+name: terraform-apply
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/tf-apply.yaml'
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Env to apply'
+        required: true
+        type: choice
+        options: [_shared, dev, uat, prod]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # Auto-apply: dev only.
+  apply-dev:
+    if: github.event_name == 'push' || github.event.inputs.env == 'dev'
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: terraform/live/dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.8.5 }
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: us-east-1
+      - run: terraform init
+      - run: terraform apply -auto-approve -input=false
+
+  # Manual approval gate: uat. Requires environment=uat reviewer in repo settings.
+  apply-uat:
+    if: github.event.inputs.env == 'uat'
+    runs-on: ubuntu-latest
+    environment: uat
+    defaults:
+      run:
+        working-directory: terraform/live/uat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.8.5 }
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: us-east-1
+      - run: terraform init
+      - run: terraform apply -auto-approve -input=false
+
+  # Manual approval gate: prod. Stricter environment protection rules required.
+  apply-prod:
+    if: github.event.inputs.env == 'prod'
+    runs-on: ubuntu-latest
+    environment: prod
+    defaults:
+      run:
+        working-directory: terraform/live/prod
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.8.5 }
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: us-east-1
+      - run: terraform init
+      - run: terraform apply -auto-approve -input=false
+
+  # _shared (ECR + Route53 + GitHub OIDC) is rarely changed; manual only.
+  apply-shared:
+    if: github.event.inputs.env == '_shared'
+    runs-on: ubuntu-latest
+    environment: shared
+    defaults:
+      run:
+        working-directory: terraform/live/_shared
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.8.5 }
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: us-east-1
+      - run: terraform init
+      - run: terraform apply -auto-approve -input=false

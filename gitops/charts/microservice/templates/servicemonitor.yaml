@@ -1,0 +1,22 @@
+{{- $v := include "microservice.merged" . | fromYaml -}}
+{{- if $v.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "microservice.fullname" . }}
+  labels:
+    {{- include "microservice.labels" . | nindent 4 }}
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "microservice.name" . }}
+  namespaceSelector:
+    matchNames:
+      - {{ include "microservice.namespace" . }}
+  endpoints:
+    - port: http
+      path: {{ $v.monitoring.serviceMonitor.path }}
+      interval: {{ $v.monitoring.serviceMonitor.interval }}
+      scrapeTimeout: {{ $v.monitoring.serviceMonitor.scrapeTimeout }}
+{{- end }}

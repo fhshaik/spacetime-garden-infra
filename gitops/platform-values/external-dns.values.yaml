@@ -1,0 +1,13 @@
+provider: aws
+sources:
+  - service
+  - ingress
+registry: txt
+interval: 1m
+serviceAccount:
+  create: true
+  name: external-dns
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false

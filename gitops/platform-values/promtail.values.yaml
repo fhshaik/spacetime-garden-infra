@@ -1,0 +1,36 @@
+config:
+  clients:
+    - url: http://loki.monitoring.svc:3100/loki/api/v1/push
+  snippets:
+    pipelineStages:
+      - cri: {}
+      # Apps emit JSON logs with request_id; extract via | json in LogQL.
+      # Don't add request_id as a Promtail label (trap D.6).
+      - json:
+          expressions:
+            level: level
+            service: service
+      - labels:
+          level:
+          # service: intentionally NOT labeled (rely on K8s label discovery)
+
+# Run as DaemonSet; mount /var/log/{containers,pods}
+daemonset:
+  enabled: true
+serviceMonitor:
+  enabled: true
+  labels:
+    release: kube-prometheus-stack
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { memory: 256Mi }
+
+# Run as root because some Bottlerocket / Amazon Linux AMIs require it for
+# /var/log access.
+securityContext:
+  runAsUser: 0
+  runAsGroup: 0
+  privileged: false
+  capabilities:
+    drop: ["ALL"]
+    add: ["DAC_READ_SEARCH"]

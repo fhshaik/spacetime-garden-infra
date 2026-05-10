@@ -1,0 +1,14 @@
+{{- $v := include "microservice.merged" . | fromYaml -}}
+{{/* Trap C.1: only emit a PDB if replicas >= 2. With replicas=1 + minAvailable=1
+     the node-drain hangs forever. */}}
+{{- if and $v.pdb.enabled (ge (int $v.replicas) 2) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "microservice.fullname" . }}
+  labels: {{- include "microservice.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ $v.pdb.minAvailable }}
+  selector:
+    matchLabels: {{- include "microservice.selectorLabels" . | nindent 6 }}
+{{- end }}

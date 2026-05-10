@@ -1,0 +1,33 @@
+# Argo CD root Application — applied once per cluster after `terraform apply`.
+#
+#   kubectl --context garden-<env> apply -f gitops/bootstrap/argocd-root-app.yaml
+#
+# This Application points at gitops/apps/, which contains the
+# ApplicationSets that fan out to platform addons + microservices.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: garden-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # TODO: replace with your fork if you've forked the infra repo
+    repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
+    targetRevision: main
+    path: gitops/apps
+    directory:
+      recurse: true
+      include: '*.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

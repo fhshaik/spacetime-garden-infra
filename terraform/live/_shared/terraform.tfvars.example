@@ -1,0 +1,8 @@
+aws_region = "us-east-1"
+
+# TODO: replace with the domain you bought (open OPEN_ITEMS.md §1.1)
+domain_name = "spacetimegarden.xyz"
+
+# Defaults are correct unless you forked or renamed:
+# app_repo   = "fhshaik/spacetime-garden"
+# infra_repo = "fhshaik/spacetime-garden-infra"

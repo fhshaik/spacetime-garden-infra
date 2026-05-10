@@ -1,0 +1,33 @@
+# Platform extras managed by Argo CD (vs Terraform-managed Helm releases for
+# core addons). This holds:
+#   - Grafana dashboards as ConfigMaps (trap D.5)
+#   - PrometheusRules for alerts
+#   - kubecost (gated on enable_kubecost in values; disabled by default)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: garden-platform-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
+      targetRevision: main
+      path: gitops/dashboards
+    - repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
+      targetRevision: main
+      path: gitops/alerts
+    - repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
+      targetRevision: main
+      path: gitops/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false  # monitoring ns created by cluster-bootstrap

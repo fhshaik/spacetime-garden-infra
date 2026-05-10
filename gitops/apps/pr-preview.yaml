@@ -1,0 +1,56 @@
+# Stretch goal (OPEN_ITEMS §1.2): PR preview environments. ApplicationSet uses
+# the PullRequest generator to spin up a namespace per open PR on the app repo.
+# When the PR closes, prune deletes the namespace (trap 2.10).
+#
+# Disabled by default — uncomment metadata to enable, and set the PAT secret.
+#
+# Setup:
+#   1. Create a fine-grained PAT on fhshaik/spacetime-garden with contents:read,
+#      pull-requests:read.
+#   2. Create K8s Secret in argocd ns:
+#        kubectl create secret generic github-pr-token --from-literal=token=ghp_...
+#   3. Set the tokenRef secretName below.
+#   4. Uncomment.
+#
+# apiVersion: argoproj.io/v1alpha1
+# kind: ApplicationSet
+# metadata:
+#   name: garden-pr-preview
+#   namespace: argocd
+# spec:
+#   goTemplate: true
+#   generators:
+#     - pullRequest:
+#         github:
+#           owner: fhshaik
+#           repo: spacetime-garden
+#           tokenRef:
+#             secretName: github-pr-token
+#             key: token
+#         requeueAfterSeconds: 300
+#   template:
+#     metadata:
+#       name: 'pr-{{.number}}'
+#     spec:
+#       project: default
+#       source:
+#         repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
+#         targetRevision: main
+#         path: gitops/charts/microservice
+#         helm:
+#           valueFiles:
+#             - ../../envs/dev/values.yaml
+#           parameters:
+#             - name: image.tag
+#               value: '{{.head_sha}}'
+#             - name: ingress.host
+#               value: 'pr-{{.number}}.spacetimegarden.xyz'
+#       destination:
+#         server: https://kubernetes.default.svc
+#         namespace: 'pr-{{.number}}'
+#       syncPolicy:
+#         automated:
+#           prune: true       # critical: deletes ns when PR closes
+#           selfHeal: true
+#         syncOptions:
+#           - CreateNamespace=true

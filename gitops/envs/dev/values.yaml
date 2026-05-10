@@ -1,0 +1,103 @@
+# Per-env values for the four microservices. Per-service blocks are keyed by
+# service name; the chart's _helpers.tpl/microservice.merged helper picks the
+# block matching .Values.serviceName.
+#
+# CONTRACT: this file is bumped by the app-repo's promote-{uat,prod}.yaml CI.
+# The CI ONLY touches `<service>.image.tag`. Don't move that field anywhere.
+#
+# TODO: replace 306323843443 with your AWS account ID before first apply.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Env-wide overrides (apply to every service in this env)
+# ─────────────────────────────────────────────────────────────────────────────
+envName: dev
+# Vocareum mode: cert-manager disabled — ingress is HTTP-only.
+ingress:
+  tls:
+    enabled: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# genome-service: owns RDS writes + Alembic migrations.
+# ─────────────────────────────────────────────────────────────────────────────
+genome-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/genome-service
+    tag: main
+  replicas: 2
+  database:
+    enabled: true
+  externalSecret:
+    enabled: false   # Vocareum: ESO disabled, secret created manually
+    awsSecretPath: garden/dev/genome-service/db
+  runMigrations: true
+  ingress:
+    host: dev.spacetimegarden.xyz
+    path: /api/genomes(/|$)(.*)
+    pathRewriteEnabled: true
+    pathRewriteTarget: /$2
+  serviceAccount:
+    create: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# breeding-service: stateless compute. HPA on this one (CPU-bound work).
+# ─────────────────────────────────────────────────────────────────────────────
+breeding-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
+    tag: main
+  replicas: 2
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  ingress:
+    host: dev.spacetimegarden.xyz
+    path: /api/breed(/|$)(.*)
+    pathRewriteEnabled: true
+    pathRewriteTarget: /$2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# gallery-service: read-only RDS reader.
+# ─────────────────────────────────────────────────────────────────────────────
+gallery-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/gallery-service
+    tag: main
+  replicas: 2
+  database:
+    enabled: true
+  externalSecret:
+    enabled: false   # Vocareum: ESO disabled, secret created manually
+    awsSecretPath: garden/dev/gallery-service/db
+  ingress:
+    host: dev.spacetimegarden.xyz
+    path: /api/gallery(/|$)(.*)
+    pathRewriteEnabled: true
+    pathRewriteTarget: /$2
+
+# ─────────────────────────────────────────────────────────────────────────────
+# frontend: nginx + SPA. Static, no DB.
+# ─────────────────────────────────────────────────────────────────────────────
+frontend:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
+    tag: main
+  replicas: 2
+  containerPort: 80
+  healthCheck:
+    livenessPath: /
+    readinessPath: /
+  monitoring:
+    serviceMonitor:
+      enabled: false   # nginx doesn't expose Prometheus metrics by default
+    prometheusRule:
+      enabled: false
+  env:
+    - name: API_BASE
+      value: https://dev.spacetimegarden.xyz/api
+  ingress:
+    host: dev.spacetimegarden.xyz
+    path: /
+    pathType: Prefix
+    pathRewriteEnabled: false

@@ -1,0 +1,18 @@
+aws_region = "us-east-1"
+
+domain_name = "spacetimegarden.xyz"
+
+alert_email_to   = "you@example.com"
+alert_email_from = "garden-alerts@spacetimegarden.xyz"
+
+tfstate_bucket = "spacetime-garden-tfstate-XXXXXXXX"
+
+# Prod runs HA: multi-AZ NAT, multi-AZ RDS, larger nodes.
+single_nat_gateway   = false
+node_instance_types  = ["t3.large"]
+node_min_size        = 3
+node_max_size        = 6
+node_desired_size    = 3
+rds_instance_class   = "db.t4g.small"
+rds_allocated_storage = 50
+rds_multi_az         = true

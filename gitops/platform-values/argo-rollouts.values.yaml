@@ -1,0 +1,15 @@
+controller:
+  replicas: 2
+  metrics:
+    enabled: true
+    serviceMonitor:
+      # Disabled here — kube-prom-stack CRD installs later. Re-enable manually
+      # if you want Argo Rollouts metrics scraped.
+      enabled: false
+# Dashboard exposed via its own Ingress at rollouts.<domain>. The dashboard is
+# read-only by default; for write access use `kubectl argo rollouts` from CLI.
+dashboard:
+  enabled: true
+  replicas: 1
+  ingress:
+    enabled: false  # enable per-env if you want a public dashboard URL

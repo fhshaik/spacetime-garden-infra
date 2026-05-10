@@ -1,0 +1,78 @@
+{{- $v := include "microservice.merged" . | fromYaml -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ include "microservice.fullname" . }}
+  labels: {{- include "microservice.labels" . | nindent 4 }}
+spec:
+  replicas: {{ $v.replicas }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: {{- include "microservice.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "microservice.selectorLabels" . | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ $v.containerPort | quote }}
+        prometheus.io/path: {{ $v.monitoring.serviceMonitor.path | quote }}
+    spec:
+      serviceAccountName: {{ include "microservice.serviceAccountName" . }}
+      securityContext: {{- toYaml $v.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ include "microservice.name" . }}
+          image: "{{ $v.image.repository }}:{{ $v.image.tag }}"
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          securityContext: {{- toYaml $v.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ $v.containerPort }}
+              protocol: TCP
+          {{- if $v.database.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ include "microservice.fullname" . }}-db
+          {{- end }}
+          {{- with $v.env }}
+          env: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: {{ $v.healthCheck.livenessPath }}
+              port: http
+            initialDelaySeconds: {{ $v.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ $v.healthCheck.periodSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ $v.healthCheck.readinessPath }}
+              port: http
+            initialDelaySeconds: {{ $v.healthCheck.initialDelaySeconds }}
+            periodSeconds: {{ $v.healthCheck.periodSeconds }}
+          resources: {{- toYaml $v.resources | nindent 12 }}
+  strategy:
+    {{- if $v.canary.enabled }}
+    canary:
+      canaryService: {{ include "microservice.fullname" . }}-canary
+      stableService: {{ include "microservice.fullname" . }}-stable
+      trafficRouting:
+        nginx:
+          stableIngress: {{ include "microservice.fullname" . }}
+      {{- if $v.canary.analysis.enabled }}
+      analysis:
+        templates:
+          - templateName: {{ include "microservice.fullname" . }}-success-rate
+        startingStep: {{ $v.canary.analysis.startingStep }}
+        args:
+          - name: namespace
+            value: {{ include "microservice.namespace" . }}
+          - name: service
+            value: {{ include "microservice.fullname" . }}-stable
+      {{- end }}
+      steps:
+        {{- toYaml $v.canary.steps | nindent 8 }}
+    {{- else }}
+    blueGreen:
+      activeService: {{ include "microservice.fullname" . }}-stable
+      previewService: {{ include "microservice.fullname" . }}-canary
+      autoPromotionEnabled: false
+    {{- end }}

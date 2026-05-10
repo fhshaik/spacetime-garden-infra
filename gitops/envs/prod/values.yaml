@@ -1,0 +1,82 @@
+# PROD env values. Bumped by app-repo's promote-prod.yaml on tag pushes.
+# Argo CD's syncPolicy for prod is manual (OPEN_ITEMS §2.6) — must click Sync.
+# TODO: replace 306323843443 with your AWS account ID.
+
+envName: prod
+# Vocareum mode: cert-manager disabled — ingress is HTTP-only.
+ingress:
+  tls:
+    enabled: false
+
+# Prod runs more replicas + tighter resource limits.
+resources:
+  requests: { cpu: 200m, memory: 256Mi }
+  limits:   { cpu: 1000m, memory: 512Mi }
+
+genome-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/genome-service
+    tag: main
+  replicas: 3
+  database:
+    enabled: true
+  externalSecret:
+    enabled: false   # Vocareum: ESO disabled
+    awsSecretPath: garden/prod/genome-service/db
+  runMigrations: true
+  ingress:
+    host: spacetimegarden.xyz
+    path: /api/genomes(/|$)(.*)
+    pathRewriteEnabled: true
+    pathRewriteTarget: /$2
+
+breeding-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
+    tag: main
+  replicas: 3
+  hpa:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+  ingress:
+    host: spacetimegarden.xyz
+    path: /api/breed(/|$)(.*)
+    pathRewriteEnabled: true
+    pathRewriteTarget: /$2
+
+gallery-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/gallery-service
+    tag: main
+  replicas: 3
+  database:
+    enabled: true
+  externalSecret:
+    enabled: false   # Vocareum: ESO disabled
+    awsSecretPath: garden/prod/gallery-service/db
+  ingress:
+    host: spacetimegarden.xyz
+    path: /api/gallery(/|$)(.*)
+    pathRewriteEnabled: true
+    pathRewriteTarget: /$2
+
+frontend:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
+    tag: main
+  replicas: 3
+  containerPort: 80
+  healthCheck:
+    livenessPath: /
+    readinessPath: /
+  monitoring:
+    serviceMonitor: { enabled: false }
+    prometheusRule: { enabled: false }
+  env:
+    - name: API_BASE
+      value: https://spacetimegarden.xyz/api
+  ingress:
+    host: spacetimegarden.xyz
+    path: /
+    pathType: Prefix

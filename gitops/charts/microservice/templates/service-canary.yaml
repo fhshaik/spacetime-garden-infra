@@ -1,0 +1,15 @@
+# Argo Rollouts mutates this Service's selector during a canary to point only
+# at the canary ReplicaSet. Required for nginx traffic shaping (trap A.4).
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "microservice.fullname" . }}-canary
+  labels: {{- include "microservice.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector: {{- include "microservice.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

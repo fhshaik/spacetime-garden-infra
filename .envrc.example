@@ -1,0 +1,11 @@
+# Copy to .envrc and edit. Requires direnv (https://direnv.net/).
+# .envrc is gitignored.
+
+export AWS_PROFILE="spacetime-garden"
+export AWS_REGION="us-east-1"
+
+# kubectl context for the current env (set by `aws eks update-kubeconfig`)
+export KUBECONFIG="$HOME/.kube/config"
+
+# Default env target for Makefile (override per shell as needed)
+export TF_ENV="dev"

@@ -1,0 +1,100 @@
+# Service Golden Signals dashboard. ConfigMap with grafana_dashboard label is
+# auto-imported by kube-prom-stack's Grafana sidecar (trap D.5).
+#
+# Panels: RPS, p50/p95/p99 latency, error rate per service. Filtered by
+# namespace and service via Grafana template variables.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: golden-signals
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  golden-signals.json: |
+    {
+      "title": "Service Golden Signals",
+      "uid": "garden-golden-signals",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "30s",
+      "tags": ["spacetime-garden", "golden-signals"],
+      "time": { "from": "now-30m", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "query",
+            "datasource": "Prometheus",
+            "query": "label_values(http_requests_total, namespace)",
+            "refresh": 2,
+            "includeAll": false
+          },
+          {
+            "name": "service",
+            "type": "query",
+            "datasource": "Prometheus",
+            "query": "label_values(http_requests_total{namespace=\"$namespace\"}, service)",
+            "refresh": 2,
+            "includeAll": false
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "title": "Request rate (RPS)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "sum(rate(http_requests_total{namespace=\"$namespace\",service=\"$service\"}[2m]))",
+            "legendFormat": "RPS"
+          }]
+        },
+        {
+          "id": 2,
+          "title": "Error rate (5xx)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "sum(rate(http_requests_total{namespace=\"$namespace\",service=\"$service\",status=~\"5..\"}[2m])) / (sum(rate(http_requests_total{namespace=\"$namespace\",service=\"$service\"}[2m])) > 0)",
+            "legendFormat": "5xx rate"
+          }],
+          "fieldConfig": { "defaults": { "unit": "percentunit" } }
+        },
+        {
+          "id": 3,
+          "title": "Latency p50/p95/p99",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{namespace=\"$namespace\",service=\"$service\"}[2m])) by (le))",
+              "legendFormat": "p50"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{namespace=\"$namespace\",service=\"$service\"}[2m])) by (le))",
+              "legendFormat": "p95"
+            },
+            {
+              "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace=\"$namespace\",service=\"$service\"}[2m])) by (le))",
+              "legendFormat": "p99"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 4,
+          "title": "Replicas (current)",
+          "type": "stat",
+          "gridPos": { "h": 4, "w": 8, "x": 0, "y": 16 },
+          "datasource": "Prometheus",
+          "targets": [{
+            "expr": "sum(kube_pod_status_ready{namespace=\"$namespace\", condition=\"true\"} * on(pod, namespace) kube_pod_labels{label_app_kubernetes_io_name=\"$service\"})"
+          }]
+        }
+      ]
+    }

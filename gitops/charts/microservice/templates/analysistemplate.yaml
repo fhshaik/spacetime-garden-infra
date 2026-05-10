@@ -1,0 +1,25 @@
+{{- $v := include "microservice.merged" . | fromYaml -}}
+{{- if and $v.canary.enabled $v.canary.analysis.enabled }}
+# Trap B.2: the `> 0` denominator guard prevents NaN when traffic is zero.
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ include "microservice.fullname" . }}-success-rate
+  labels: {{- include "microservice.labels" . | nindent 4 }}
+spec:
+  args:
+    - name: namespace
+    - name: service
+  metrics:
+    - name: success-rate
+      interval: {{ $v.canary.analysis.interval }}
+      successCondition: "result[0] >= {{ $v.canary.analysis.successThreshold }}"
+      failureLimit: {{ $v.canary.analysis.failureLimit }}
+      provider:
+        prometheus:
+          address: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+          query: |
+            sum(rate(http_requests_total{namespace="{{ "{{" }}args.namespace{{ "}}" }}",service="{{ "{{" }}args.service{{ "}}" }}",status!~"5.."}[2m]))
+            /
+            (sum(rate(http_requests_total{namespace="{{ "{{" }}args.namespace{{ "}}" }}",service="{{ "{{" }}args.service{{ "}}" }}"}[2m])) > 0)
+{{- end }}

@@ -1,0 +1,33 @@
+{{- $v := include "microservice.merged" . | fromYaml -}}
+{{- if $v.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "microservice.fullname" . }}
+  labels: {{- include "microservice.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ $v.ingress.tls.issuer | quote }}
+    {{- if $v.ingress.pathRewriteEnabled }}
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: {{ $v.ingress.pathRewriteTarget | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ $v.ingress.className }}
+  {{- if $v.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ $v.ingress.host | quote }}
+      secretName: {{ default (printf "%s-tls" (include "microservice.fullname" .)) $v.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ $v.ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ $v.ingress.path | quote }}
+            pathType: {{ $v.ingress.pathType }}
+            backend:
+              service:
+                name: {{ include "microservice.fullname" . }}-stable
+                port:
+                  name: http
+{{- end }}

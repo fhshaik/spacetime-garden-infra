@@ -1,0 +1,40 @@
+{{- $v := include "microservice.merged" . | fromYaml -}}
+{{- if $v.monitoring.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "microservice.fullname" . }}
+  labels:
+    {{- include "microservice.labels" . | nindent 4 }}
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: {{ include "microservice.fullname" . }}
+      rules:
+        - alert: ServiceErrorRateHigh
+          expr: |
+            (
+              sum(rate(http_requests_total{namespace="{{ include "microservice.namespace" . }}",service="{{ include "microservice.fullname" . }}-stable",status=~"5.."}[5m]))
+              /
+              (sum(rate(http_requests_total{namespace="{{ include "microservice.namespace" . }}",service="{{ include "microservice.fullname" . }}-stable"}[5m])) > 0)
+            ) > {{ $v.monitoring.prometheusRule.errorRateThreshold }}
+          for: 5m
+          labels:
+            severity: critical
+            service: {{ include "microservice.name" . }}
+            env: {{ .Values.envName }}
+          annotations:
+            summary: "{{ "{{" }} $labels.service {{ "}}" }} 5xx error rate above {{ $v.monitoring.prometheusRule.errorRateThreshold }}"
+            description: "5xx error rate is {{ "{{" }} $value {{ "}}" }} for over 5 minutes."
+        - alert: ServiceLatencyHigh
+          expr: |
+            histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{namespace="{{ include "microservice.namespace" . }}",service="{{ include "microservice.fullname" . }}-stable"}[5m])) by (le))
+            > {{ $v.monitoring.prometheusRule.latencyThreshold }}
+          for: 10m
+          labels:
+            severity: warning
+            service: {{ include "microservice.name" . }}
+            env: {{ .Values.envName }}
+          annotations:
+            summary: "{{ "{{" }} $labels.service {{ "}}" }} p99 latency above {{ $v.monitoring.prometheusRule.latencyThreshold }}s"
+{{- end }}

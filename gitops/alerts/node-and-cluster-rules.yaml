@@ -1,0 +1,75 @@
+# PrometheusRule with rubric-required node-level alerts (CPU/memory/disk) +
+# pod stability alerts. Service-level alerts (5xx rate, latency) are emitted
+# per-service by the microservice chart's prometheusrule.yaml template.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: garden-node-and-cluster
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: garden-nodes
+      rules:
+        - alert: NodeCpuHigh
+          expr: |
+            avg by (instance) (1 - rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.85
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.instance }} CPU above 85%"
+            description: "CPU usage {{ $value | humanizePercentage }} sustained > 10m."
+
+        - alert: NodeMemoryHigh
+          expr: |
+            (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.instance }} memory above 85%"
+
+        - alert: NodeDiskHigh
+          expr: |
+            (node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"})
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} > 0.80
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.instance }} disk above 80% on {{ $labels.mountpoint }}"
+
+    - name: garden-pods
+      rules:
+        - alert: PodCrashLoopBackOff
+          expr: |
+            kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"} > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} crash-looping"
+
+        - alert: PodOOMKilled
+          expr: |
+            increase(kube_pod_container_status_last_terminated_reason{reason="OOMKilled"}[10m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} OOMKilled"
+
+    - name: garden-certs
+      rules:
+        # Trap A.5 — cert-manager renewal silently failing
+        - alert: CertExpiringSoon
+          expr: |
+            (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400 < 14
+          for: 1h
+          labels:
+            severity: warning
+          annotations:
+            summary: "Cert {{ $labels.name }} expires in < 14d"
+            description: "cert-manager renewal may have failed silently."

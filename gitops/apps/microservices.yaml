@@ -1,0 +1,87 @@
+# ApplicationSet: fans out one Argo CD Application per (service × env) =
+# 4 services × 3 envs = 12 Applications. Each Application uses the same
+# microservice Helm chart with per-env values.
+#
+# Trap B.5: each Application includes the migration Job + Rollout in the same
+# sync — sync waves order them within. No cross-Application dependency needed.
+#
+# Trap B.4: prod uses manual sync (no automated.selfHeal) to require explicit
+# approval; dev/uat auto-sync. Generators below split prod from non-prod.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: garden-microservices
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          - list:
+              elements:
+                - env: dev
+                  namespace: garden-dev
+                  autoSync: true
+                - env: uat
+                  namespace: garden-uat
+                  autoSync: true
+                - env: prod
+                  namespace: garden-prod
+                  autoSync: false
+          - list:
+              elements:
+                - service: genome-service
+                - service: breeding-service
+                - service: gallery-service
+                - service: frontend
+  template:
+    metadata:
+      name: '{{.service}}-{{.env}}'
+      labels:
+        garden.alaris.security/env: '{{.env}}'
+        garden.alaris.security/service: '{{.service}}'
+    spec:
+      project: default
+      sources:
+        - repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
+          targetRevision: main
+          path: gitops/charts/microservice
+          helm:
+            releaseName: '{{.service}}'
+            valueFiles:
+              - $values/gitops/envs/{{.env}}/values.yaml
+            # Per-Application override: select only this service's block from
+            # the env values file, plus pass envName through.
+            parameters:
+              - name: serviceName
+                value: '{{.service}}'
+              - name: envName
+                value: '{{.env}}'
+        - repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
+          targetRevision: main
+          ref: values
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{.namespace}}'
+      syncPolicy:
+        # Dev/UAT auto-sync; prod requires manual click (trap B.4 / OPEN_ITEMS 2.6)
+        automated:
+          prune: '{{.autoSync}}'
+          selfHeal: '{{.autoSync}}'
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - ApplyOutOfSyncOnly=true
+        retry:
+          limit: 3
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 5m
+      ignoreDifferences:
+        # HPA mutates spec.replicas — Argo CD must not fight it (trap B.3)
+        - group: argoproj.io
+          kind: Rollout
+          jsonPointers:
+            - /spec/replicas

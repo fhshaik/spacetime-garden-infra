@@ -1,0 +1,35 @@
+# Kubecost — stretch goal (OPEN_ITEMS §1.2). Disabled by default.
+# Enable by setting enable_kubecost = true in TF and adding the helm_release.
+global:
+  prometheus:
+    enabled: false           # use existing kube-prom-stack
+    fqdn: http://kube-prometheus-stack-prometheus.monitoring.svc:9090
+  grafana:
+    enabled: false
+    domainName: kube-prometheus-stack-grafana.monitoring.svc
+    proxy: true
+
+kubecostFrontend:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { memory: 256Mi }
+
+kubecostModel:
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+    limits:   { memory: 1Gi }
+
+prometheus:
+  server:
+    enabled: false             # we use external prometheus
+  serviceAccounts:
+    server:
+      create: false
+  alertmanager:
+    enabled: false
+  pushgateway:
+    enabled: false
+  nodeExporter:
+    enabled: false
+  kubeStateMetrics:
+    enabled: false

@@ -1,0 +1,127 @@
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: false        # EKS hides etcd
+    general: true
+    k8s: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: false
+    kubeApiserverHistogram: false
+    kubeApiserverSlos: false
+    kubelet: true
+    kubeProxy: false
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeScheduler: false   # EKS hides
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    retentionSize: "10GiB"      # trap E.6 — explicit cap
+    resources:
+      requests: { cpu: 200m, memory: 1Gi }
+      limits:   { memory: 2Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+    # Auto-discover ServiceMonitors regardless of namespace + helm release label
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+alertmanager:
+  alertmanagerSpec:
+    replicas: 2
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+    # SMTP password mounted from K8s Secret synced by ESO from Secrets Manager
+    secrets:
+      - alertmanager-smtp     # ExternalSecret creates this; key 'password' in Secrets Manager
+
+grafana:
+  replicas: 1
+  admin:
+    existingSecret: ""        # disable admin user; rely on OAuth
+  defaultDashboardsEnabled: true
+  serviceMonitor:
+    enabled: true
+    labels:
+      release: kube-prometheus-stack
+  persistence:
+    enabled: true
+    size: 5Gi
+  # Sidecar for ConfigMap-based dashboards (trap D.5)
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      provider:
+        allowUiUpdates: false   # ConfigMap is source of truth
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.monitoring.svc:3100
+      access: proxy
+  # OAuth credentials sourced from K8s Secret (synced by ESO)
+  envValueFrom:
+    GF_AUTH_GITHUB_CLIENT_ID:
+      secretKeyRef:
+        name: grafana-github-oauth
+        key: client_id
+    GF_AUTH_GITHUB_CLIENT_SECRET:
+      secretKeyRef:
+        name: grafana-github-oauth
+        key: client_secret
+  grafana.ini:
+    auth:
+      disable_login_form: true
+      oauth_auto_login: true
+
+kubeApiServer:
+  enabled: true
+kubelet:
+  enabled: true
+  serviceMonitor:
+    cAdvisor: true
+kubeControllerManager:
+  enabled: false        # EKS managed
+kubeEtcd:
+  enabled: false        # EKS managed
+kubeScheduler:
+  enabled: false        # EKS managed
+kubeProxy:
+  enabled: false        # IPVS may not be in use
+nodeExporter:
+  enabled: true
+kubeStateMetrics:
+  enabled: true
+prometheusOperator:
+  serviceMonitor:
+    selfMonitor: true

@@ -1,0 +1,35 @@
+{{- $v := include "microservice.merged" . | fromYaml -}}
+{{- if $v.runMigrations }}
+# Trap B.1: Argo CD doesn't fire Helm hooks. Use Argo CD's PreSync hook
+# annotations + sync waves to order migration before app rollout.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "microservice.fullname" . }}-migrate-{{ $v.image.tag | trunc 7 | lower | replace "_" "-" }}
+  labels: {{- include "microservice.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  backoffLimit: {{ $v.migration.backoffLimit }}
+  ttlSecondsAfterFinished: {{ $v.migration.ttlSecondsAfterFinished }}
+  template:
+    metadata:
+      labels: {{- include "microservice.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "microservice.serviceAccountName" . }}
+      securityContext: {{- toYaml $v.podSecurityContext | nindent 8 }}
+      containers:
+        - name: migrate
+          image: "{{ $v.image.repository }}:{{ $v.image.tag }}"
+          imagePullPolicy: {{ $v.image.pullPolicy }}
+          command: {{ toJson $v.migration.command }}
+          {{- if $v.database.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ include "microservice.fullname" . }}-db
+          {{- end }}
+          resources: {{- toYaml $v.migration.resources | nindent 12 }}
+{{- end }}

@@ -1,0 +1,14 @@
+aws_region = "us-east-1"
+
+domain_name = "spacetimegarden.xyz"
+
+alert_email_to   = "you@example.com"
+alert_email_from = "garden-alerts@spacetimegarden.xyz"
+
+tfstate_bucket = "spacetime-garden-tfstate-XXXXXXXX"
+
+# UAT runs slightly bigger than dev for realistic load tests.
+node_instance_types = ["t3.medium"]
+node_min_size       = 2
+node_max_size       = 5
+node_desired_size   = 3

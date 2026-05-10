@@ -1,0 +1,18 @@
+apiVersion: v2
+name: microservice
+description: |
+  One parameterized chart for all four Spacetime Garden services
+  (genome-service, breeding-service, gallery-service, frontend).
+
+  Per-service differences (database access, HPA, migrations, ingress path)
+  are toggled via values, not separate charts.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/fhshaik/spacetime-garden-infra
+keywords:
+  - spacetime-garden
+  - microservice
+  - argo-rollouts
+maintainers:
+  - name: fhshaik
