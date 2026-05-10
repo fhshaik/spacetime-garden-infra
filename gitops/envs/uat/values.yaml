@@ -60,21 +60,20 @@ frontend:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
     tag: main
   replicas: 2
-  containerPort: 80
-  # nginx serves files from /usr/share/nginx/html (root-owned). Must run as root.
+  containerPort: 8080
   podSecurityContext:
-    runAsNonRoot: false
-    runAsUser: 0
+    runAsNonRoot: true
+    runAsUser: 101
+    fsGroup: 101
   securityContext:
-    runAsNonRoot: false
-    runAsUser: 0
+    runAsNonRoot: true
+    runAsUser: 101
     allowPrivilegeEscalation: false
     capabilities:
-      drop: []
-      add: ["NET_BIND_SERVICE", "CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
+      drop: ["ALL"]
   healthCheck:
-    livenessPath: /
-    readinessPath: /
+    livenessPath: /healthz
+    readinessPath: /healthz
   monitoring:
     serviceMonitor: { enabled: false }
     prometheusRule: { enabled: false }
