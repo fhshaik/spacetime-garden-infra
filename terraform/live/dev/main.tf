@@ -285,14 +285,16 @@ resource "aws_db_subnet_group" "rds" {
 
 resource "aws_security_group" "rds" {
   name        = "garden-${local.env}-rds"
-  description = "Allow Postgres from EKS nodes"
+  description = "Allow Postgres from EKS"
   vpc_id      = module.vpc.vpc_id
 
+  # Pods get ENIs in the EKS-managed cluster SG (vpc-cni default), not our
+  # node SG. Allow both so app pods AND any host-network workloads connect.
   ingress {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.node.id]
+    security_groups = [aws_security_group.node.id, aws_eks_cluster.this.vpc_config[0].cluster_security_group_id]
   }
 
   egress {

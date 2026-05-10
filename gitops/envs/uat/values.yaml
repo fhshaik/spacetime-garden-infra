@@ -2,10 +2,11 @@
 # TODO: replace 306323843443 with your AWS account ID.
 
 envName: uat
-# Vocareum mode: cert-manager disabled — ingress is HTTP-only.
+
 ingress:
   tls:
-    enabled: false
+    enabled: true
+    issuer: letsencrypt-prod
 
 genome-service:
   image:

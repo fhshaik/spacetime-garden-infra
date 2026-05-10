@@ -11,10 +11,11 @@
 # Env-wide overrides (apply to every service in this env)
 # ─────────────────────────────────────────────────────────────────────────────
 envName: dev
-# Vocareum mode: cert-manager disabled — ingress is HTTP-only.
+
 ingress:
   tls:
-    enabled: false
+    enabled: true
+    issuer: letsencrypt-prod
 
 # ─────────────────────────────────────────────────────────────────────────────
 # genome-service: owns RDS writes + Alembic migrations.

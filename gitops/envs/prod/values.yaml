@@ -3,10 +3,11 @@
 # TODO: replace 306323843443 with your AWS account ID.
 
 envName: prod
-# Vocareum mode: cert-manager disabled — ingress is HTTP-only.
+
 ingress:
   tls:
-    enabled: false
+    enabled: true
+    issuer: letsencrypt-prod
 
 # Prod runs more replicas + tighter resource limits.
 resources:
