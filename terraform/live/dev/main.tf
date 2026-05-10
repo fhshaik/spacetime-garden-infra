@@ -233,7 +233,8 @@ locals {
 resource "random_password" "rds_master" {
   length           = 32
   special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+  # Alphanumeric + safe chars only. % breaks Alembic configparser; @:/?# break URLs.
+  override_special = "-_"
 }
 
 # Vocareum: Secrets Manager creation may be restricted. RDS password is in

@@ -67,6 +67,9 @@ frontend:
     tag: main
   replicas: 3
   containerPort: 8080
+  canary:
+    analysis:
+      enabled: false
   podSecurityContext:
     runAsNonRoot: true
     runAsUser: 101

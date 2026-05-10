@@ -85,6 +85,9 @@ frontend:
     tag: main
   replicas: 2
   containerPort: 8080   # nginxinc/nginx-unprivileged listens on 8080
+  canary:
+    analysis:
+      enabled: false   # nginx doesn't expose http_requests_total
   podSecurityContext:
     runAsNonRoot: true
     runAsUser: 101      # nginx user baked into nginx-unprivileged image
