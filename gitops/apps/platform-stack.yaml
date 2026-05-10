@@ -19,9 +19,7 @@ spec:
     - repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
       targetRevision: main
       path: gitops/alerts
-    - repoURL: https://github.com/fhshaik/spacetime-garden-infra.git
-      targetRevision: main
-      path: gitops/monitoring
+    # gitops/monitoring (ExternalSecrets) is empty on Vocareum — ESO disabled.
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
