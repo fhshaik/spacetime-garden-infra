@@ -85,6 +85,15 @@ frontend:
     tag: main
   replicas: 2
   containerPort: 80
+  # nginx serves files from /usr/share/nginx/html (root-owned) and writes
+  # config.js at start. Must run as root.
+  podSecurityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+  securityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+    allowPrivilegeEscalation: false
   healthCheck:
     livenessPath: /
     readinessPath: /

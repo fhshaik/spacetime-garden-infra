@@ -67,6 +67,13 @@ frontend:
     tag: main
   replicas: 3
   containerPort: 80
+  podSecurityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+  securityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+    allowPrivilegeEscalation: false
   healthCheck:
     livenessPath: /
     readinessPath: /
