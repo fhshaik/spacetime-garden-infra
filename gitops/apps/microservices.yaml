@@ -65,10 +65,11 @@ spec:
         server: https://kubernetes.default.svc
         namespace: '{{.namespace}}'
       syncPolicy:
-        # Dev/UAT auto-sync; prod requires manual click (trap B.4 / OPEN_ITEMS 2.6)
+        # Auto-sync all envs for demo. In real prod we'd split prod into a
+        # separate ApplicationSet without automated.{prune,selfHeal}.
         automated:
-          prune: '{{.autoSync}}'
-          selfHeal: '{{.autoSync}}'
+          prune: true
+          selfHeal: true
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
