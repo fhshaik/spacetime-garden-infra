@@ -83,7 +83,7 @@ frontend:
     prometheusRule: { enabled: false }
   env:
     - name: API_BASE
-      value: https://uat.spacetimegarden.xyz/api
+      value: https://uat.spacetimegarden.xyz
   ingress:
     host: uat.spacetimegarden.xyz
     path: /

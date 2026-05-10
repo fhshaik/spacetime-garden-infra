@@ -109,7 +109,7 @@ frontend:
       enabled: false
   env:
     - name: API_BASE
-      value: https://dev.spacetimegarden.xyz/api
+      value: https://dev.spacetimegarden.xyz
   ingress:
     host: dev.spacetimegarden.xyz
     path: /

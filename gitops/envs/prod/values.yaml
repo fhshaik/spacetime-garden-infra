@@ -89,7 +89,7 @@ frontend:
     prometheusRule: { enabled: false }
   env:
     - name: API_BASE
-      value: https://spacetimegarden.xyz/api
+      value: https://spacetimegarden.xyz
   ingress:
     host: spacetimegarden.xyz
     path: /
