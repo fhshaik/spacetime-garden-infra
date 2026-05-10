@@ -27,9 +27,9 @@ genome-service:
   runMigrations: true
   ingress:
     host: spacetimegarden.xyz
-    path: /api/genomes(/|$)(.*)
+    path: /api/genomes(/.*)?$
     pathRewriteEnabled: true
-    pathRewriteTarget: /$2
+    pathRewriteTarget: /genomes$1
 
 breeding-service:
   image:
@@ -42,9 +42,9 @@ breeding-service:
     maxReplicas: 12
   ingress:
     host: spacetimegarden.xyz
-    path: /api/breed(/|$)(.*)
+    path: /api/breed(/.*)?$
     pathRewriteEnabled: true
-    pathRewriteTarget: /$2
+    pathRewriteTarget: /breed$1
 
 gallery-service:
   image:
@@ -58,9 +58,9 @@ gallery-service:
     awsSecretPath: garden/prod/gallery-service/db
   ingress:
     host: spacetimegarden.xyz
-    path: /api/gallery(/|$)(.*)
+    path: /api/gallery(/.*)?$
     pathRewriteEnabled: true
-    pathRewriteTarget: /$2
+    pathRewriteTarget: /gallery$1
 
 frontend:
   image:

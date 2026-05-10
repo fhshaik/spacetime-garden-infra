@@ -33,9 +33,9 @@ genome-service:
   runMigrations: true
   ingress:
     host: dev.spacetimegarden.xyz
-    path: /api/genomes(/|$)(.*)
+    path: /api/genomes(/.*)?$
     pathRewriteEnabled: true
-    pathRewriteTarget: /$2
+    pathRewriteTarget: /genomes$1
   serviceAccount:
     create: true
 
@@ -54,9 +54,9 @@ breeding-service:
     targetCPUUtilizationPercentage: 70
   ingress:
     host: dev.spacetimegarden.xyz
-    path: /api/breed(/|$)(.*)
+    path: /api/breed(/.*)?$
     pathRewriteEnabled: true
-    pathRewriteTarget: /$2
+    pathRewriteTarget: /breed$1
 
 # ─────────────────────────────────────────────────────────────────────────────
 # gallery-service: read-only RDS reader.
@@ -73,9 +73,9 @@ gallery-service:
     awsSecretPath: garden/dev/gallery-service/db
   ingress:
     host: dev.spacetimegarden.xyz
-    path: /api/gallery(/|$)(.*)
+    path: /api/gallery(/.*)?$
     pathRewriteEnabled: true
-    pathRewriteTarget: /$2
+    pathRewriteTarget: /gallery$1
 
 # ─────────────────────────────────────────────────────────────────────────────
 # frontend: nginx + SPA. Static, no DB.
