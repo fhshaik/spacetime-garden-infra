@@ -1,4 +1,14 @@
 name: terraform-apply
+
+# Vocareum-mode auth:
+#   The AWS Academy Lab denies iam:CreateOpenIDConnectProvider, so we can't
+#   set up GitHub OIDC against the lab account. We fall back to static
+#   credentials stored as repo secrets. These expire with the 4-hour lab
+#   session — refresh them by re-running `gh secret set` before each demo.
+#
+#   In a real AWS account, swap `aws-access-key-id` etc. back to
+#   `role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}` for short-lived OIDC tokens.
+
 on:
   push:
     branches: [main]
@@ -14,15 +24,12 @@ on:
         options: [_shared, dev, uat, prod]
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
-  # Auto-apply: dev only.
   apply-dev:
     if: github.event_name == 'push' || github.event.inputs.env == 'dev'
     runs-on: ubuntu-latest
-    environment: dev
     defaults:
       run:
         working-directory: terraform/live/dev
@@ -32,12 +39,13 @@ jobs:
         with: { terraform_version: 1.8.5 }
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
       - run: terraform init
       - run: terraform apply -auto-approve -input=false
 
-  # Manual approval gate: uat. Requires environment=uat reviewer in repo settings.
   apply-uat:
     if: github.event.inputs.env == 'uat'
     runs-on: ubuntu-latest
@@ -51,12 +59,13 @@ jobs:
         with: { terraform_version: 1.8.5 }
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
       - run: terraform init
       - run: terraform apply -auto-approve -input=false
 
-  # Manual approval gate: prod. Stricter environment protection rules required.
   apply-prod:
     if: github.event.inputs.env == 'prod'
     runs-on: ubuntu-latest
@@ -70,16 +79,16 @@ jobs:
         with: { terraform_version: 1.8.5 }
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
       - run: terraform init
       - run: terraform apply -auto-approve -input=false
 
-  # _shared (ECR + Route53 + GitHub OIDC) is rarely changed; manual only.
   apply-shared:
     if: github.event.inputs.env == '_shared'
     runs-on: ubuntu-latest
-    environment: shared
     defaults:
       run:
         working-directory: terraform/live/_shared
@@ -89,7 +98,9 @@ jobs:
         with: { terraform_version: 1.8.5 }
       - uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
       - run: terraform init
       - run: terraform apply -auto-approve -input=false

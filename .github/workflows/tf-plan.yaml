@@ -1,12 +1,15 @@
 name: terraform-plan
+# Vocareum-mode auth: static creds from repo secrets (OIDC blocked).
+# See tf-apply.yaml for context.
+
 on:
   pull_request:
     paths:
       - 'terraform/**'
       - '.github/workflows/tf-plan.yaml'
+  workflow_dispatch:   # let us trigger manually to verify
 
 permissions:
-  id-token: write    # for OIDC -> AWS
   contents: read
   pull-requests: write
 
@@ -16,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [_shared, dev, uat, prod]
+        env: [dev]      # Vocareum: only dev is live; restore [_shared, dev, uat, prod] for real AWS
     defaults:
       run:
         working-directory: terraform/live/${{ matrix.env }}
@@ -30,8 +33,10 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - run: terraform init
 
