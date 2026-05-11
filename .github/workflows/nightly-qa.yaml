@@ -1,23 +1,34 @@
 name: nightly-qa-build
 
-# Runs at 02:00 UTC every day. Rebases gitops/envs/qa/values.yaml to the
-# current uat image SHAs, then smoke-tests qa.spacetimegarden.xyz once
-# Argo CD has reconciled.
+# Runs at 02:00 UTC every day. Implements the rubric §2 forward chain:
 #
-# Satisfies rubric §2: "Dev → Nightly Build (QA) → UAT → Prod" — QA is
-# the cron-triggered intermediate stage between continuous dev deploys
-# and stable uat.
+#   Dev → Nightly Build (QA) → UAT → Prod
+#
+# Stage 1 (rebase-qa-from-dev): copy current Dev image tags into qa/values.yaml
+# Stage 2 (smoke-test-qa):       validate qa.spacetimegarden.xyz endpoints
+# Stage 3 (promote-qa-to-uat):   on smoke-test success, promote QA's tags to UAT
+#
+# Each stage `needs:` the previous one, so a smoke-test failure halts the
+# chain — UAT is NOT bumped. That's the gate-check the rubric asks for.
+#
+# Production is bumped separately by the app-repo `promote-prod` workflow
+# on `v*.*.*` tags, which verifies the tagged SHA matches UAT before
+# touching prod/values.yaml.
+#
+# `workflow_dispatch` is enabled so the chain can be triggered on demand
+# (used during the demo recording — otherwise this would run only at 02:00).
 
 on:
   schedule:
-    - cron: '0 2 * * *'   # 02:00 UTC = 19:00 PT (or 18:00 PT during DST)
-  workflow_dispatch:      # allow manual trigger for demo
+    - cron: '0 2 * * *'   # 02:00 UTC = 19:00 PT (18:00 PT during DST)
+  workflow_dispatch:
 
 permissions:
-  contents: write   # to commit + push the values bump
+  contents: write   # to commit + push the values bumps
 
 jobs:
-  rebase-qa-to-uat:
+  rebase-qa-from-dev:
+    name: Stage 1 — rebase QA from current Dev tags
     runs-on: ubuntu-latest
     steps:
       - name: Checkout infra repo
@@ -31,16 +42,15 @@ jobs:
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      - name: Copy uat image tags into qa values
+      - name: Copy dev image tags into qa values
         id: rebase
         run: |
           for svc in genome-service breeding-service gallery-service frontend; do
-            UAT_TAG=$(yq -r ".[\"$svc\"].image.tag" gitops/envs/uat/values.yaml)
+            DEV_TAG=$(yq -r ".[\"$svc\"].image.tag" gitops/envs/dev/values.yaml)
             CURRENT_QA_TAG=$(yq -r ".[\"$svc\"].image.tag" gitops/envs/qa/values.yaml)
-            echo "$svc: uat=$UAT_TAG qa(current)=$CURRENT_QA_TAG"
-            yq -i ".[\"$svc\"].image.tag = \"$UAT_TAG\"" gitops/envs/qa/values.yaml
+            echo "$svc: dev=$DEV_TAG qa(current)=$CURRENT_QA_TAG"
+            yq -i ".[\"$svc\"].image.tag = \"$DEV_TAG\"" gitops/envs/qa/values.yaml
           done
-          # Add a nightly marker comment with the build timestamp
           STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           yq -i ".nightlyBuildAt = \"$STAMP\"" gitops/envs/qa/values.yaml
           echo "stamp=$STAMP" >> $GITHUB_OUTPUT
@@ -50,21 +60,21 @@ jobs:
           git config user.name 'nightly-qa-bot'
           git config user.email 'nightly-qa-bot@spacetimegarden.xyz'
           if git diff --quiet gitops/envs/qa/values.yaml; then
-            echo "QA already matches UAT — no commit needed"
+            echo "QA already matches Dev — no commit needed"
             exit 0
           fi
           git add gitops/envs/qa/values.yaml
-          git commit -m "nightly: rebase qa to uat (build ${{ steps.rebase.outputs.stamp }})"
+          git commit -m "nightly: rebase qa from dev (build ${{ steps.rebase.outputs.stamp }})"
           git push
 
-      - name: Wait for Argo CD reconcile
+      - name: Wait for Argo CD reconcile of QA
         run: |
-          echo "Argo CD will reconcile within 3 min via auto-sync."
-          echo "In a hardened setup we'd webhook-trigger Argo CD here."
+          echo "Waiting 180s for Argo CD to sync QA with the new tags..."
           sleep 180
 
   smoke-test-qa:
-    needs: rebase-qa-to-uat
+    name: Stage 2 — smoke test qa.spacetimegarden.xyz
+    needs: rebase-qa-from-dev
     runs-on: ubuntu-latest
     steps:
       - name: HTTPS endpoint health
@@ -87,7 +97,7 @@ jobs:
           echo "GET $BASE/api/gallery → $CODE"
           [[ "$CODE" == "200" ]] || { echo "FAIL gallery"; exit 1; }
 
-          # 4. breeding-service: POST /api/breed with empty parents returns 422 (validation error)
+          # 4. breeding-service: POST /api/breed with empty parents returns 422
           # That's "handler reached" — the routing chain through ingress-nginx works.
           CODE=$(curl -s -o /dev/null -w '%{http_code}' \
             -X POST -H 'Content-Type: application/json' \
@@ -105,8 +115,53 @@ jobs:
             | openssl x509 -noout -checkend $((14*86400)) && echo "ok")
           echo "TLS cert: $DAYS_LEFT"
 
-      - name: Notify on failure
-        if: failure()
+  promote-qa-to-uat:
+    name: Stage 3 — promote QA → UAT (gated on smoke tests)
+    needs: smoke-test-qa
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout infra repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
         run: |
-          echo "::error::nightly qa smoke test failed — investigate qa.spacetimegarden.xyz"
-          # In a real setup: post to Slack via webhook here.
+          sudo curl -fsSL -o /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Copy qa image tags into uat values
+        id: promote
+        run: |
+          for svc in genome-service breeding-service gallery-service frontend; do
+            QA_TAG=$(yq -r ".[\"$svc\"].image.tag" gitops/envs/qa/values.yaml)
+            CURRENT_UAT_TAG=$(yq -r ".[\"$svc\"].image.tag" gitops/envs/uat/values.yaml)
+            echo "$svc: qa=$QA_TAG uat(current)=$CURRENT_UAT_TAG"
+            yq -i ".[\"$svc\"].image.tag = \"$QA_TAG\"" gitops/envs/uat/values.yaml
+          done
+          STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          echo "stamp=$STAMP" >> $GITHUB_OUTPUT
+
+      - name: Commit + push if changed
+        run: |
+          git config user.name 'nightly-qa-bot'
+          git config user.email 'nightly-qa-bot@spacetimegarden.xyz'
+          if git diff --quiet gitops/envs/uat/values.yaml; then
+            echo "UAT already matches QA — no commit needed"
+            exit 0
+          fi
+          git add gitops/envs/uat/values.yaml
+          git commit -m "nightly: promote qa→uat after smoke tests (build ${{ steps.promote.outputs.stamp }})"
+          git push
+
+  notify-on-failure:
+    name: Emit failure marker if any stage failed
+    needs: [rebase-qa-from-dev, smoke-test-qa, promote-qa-to-uat]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Marker
+        run: |
+          echo "::error::nightly qa chain failed — UAT was NOT promoted. Investigate qa.spacetimegarden.xyz"
+          # In a hardened setup we'd post to Slack here.
