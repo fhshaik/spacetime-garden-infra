@@ -22,7 +22,7 @@ ingress:
 genome-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/genome-service
-    tag: main
+    tag: c4b1cc4a2564fd01a09a126684fb68c7b94381e8
   replicas: 2
   database:
     enabled: true
@@ -43,7 +43,7 @@ genome-service:
 breeding-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
-    tag: main
+    tag: c4b1cc4a2564fd01a09a126684fb68c7b94381e8
   replicas: 2
   hpa:
     enabled: true
@@ -61,7 +61,7 @@ breeding-service:
 gallery-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/gallery-service
-    tag: main
+    tag: c4b1cc4a2564fd01a09a126684fb68c7b94381e8
   replicas: 2
   database:
     enabled: true
@@ -79,7 +79,7 @@ gallery-service:
 frontend:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
-    tag: main
+    tag: c4b1cc4a2564fd01a09a126684fb68c7b94381e8
   replicas: 2
   containerPort: 8080 # nginxinc/nginx-unprivileged listens on 8080
   canary:
@@ -111,4 +111,4 @@ frontend:
     path: /
     pathType: Prefix
     pathRewriteEnabled: false
-nightlyBuildAt: "2026-05-11T03:19:54Z"
+nightlyBuildAt: "2026-05-11T08:59:40Z"
