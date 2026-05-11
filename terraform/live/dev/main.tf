@@ -319,6 +319,57 @@ output "rds_master_password_for_manual_secrets" {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Route53 DNS records for ingresses.
+# Standard subdomains use CNAMEs to the NLB hostname.
+# The apex (spacetimegarden.xyz) uses an ALIAS — Route53's proprietary record
+# type that resolves to the NLB dynamically. DNS spec forbids CNAMEs at apex
+# (they'd conflict with the SOA/NS records).
+# ─────────────────────────────────────────────────────────────────────────────
+
+data "kubernetes_service" "ingress_nginx" {
+  metadata {
+    name      = "ingress-nginx-controller"
+    namespace = "ingress-nginx"
+  }
+  depends_on = [module.cluster_bootstrap]
+}
+
+locals {
+  nlb_hostname = data.kubernetes_service.ingress_nginx.status[0].load_balancer[0].ingress[0].hostname
+  # us-east-1 NLB canonical zone ID. Static AWS-wide value, documented:
+  # https://docs.aws.amazon.com/general/latest/gr/elb.html
+  nlb_canonical_zone_id = "Z26RNL4JYFTOTI"
+}
+
+# Apex domain — ALIAS to NLB. Validates the cert-manager HTTP-01 path for prod
+# whose hostname is the bare apex (e.g. https://spacetimegarden.xyz/).
+resource "aws_route53_record" "apex" {
+  zone_id = data.terraform_remote_state.shared.outputs.route53_zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = local.nlb_hostname
+    zone_id                = local.nlb_canonical_zone_id
+    evaluate_target_health = true
+  }
+}
+
+# Subdomain CNAMEs — for dev/uat/argocd/grafana that are already pointing
+# via the manual aws cli we ran earlier. Including here so re-applies are
+# idempotent.
+resource "aws_route53_record" "subdomain" {
+  for_each = toset(["dev", "uat", "argocd", "grafana"])
+
+  zone_id         = data.terraform_remote_state.shared.outputs.route53_zone_id
+  name            = "${each.key}.${var.domain_name}"
+  type            = "CNAME"
+  ttl             = 60
+  records         = [local.nlb_hostname]
+  allow_overwrite = true   # records pre-existed from earlier manual CLI
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Cluster bootstrap (Helm releases for cluster addons)
 # Vocareum-mode: skips IRSA + cert-manager + external-dns + ESO.
 # ─────────────────────────────────────────────────────────────────────────────
