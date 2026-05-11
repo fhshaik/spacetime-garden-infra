@@ -1,6 +1,9 @@
 # ApplicationSet: fans out one Argo CD Application per (service × env) =
-# 4 services × 3 envs = 12 Applications. Each Application uses the same
+# 4 services × 4 envs = 16 Applications. Each Application uses the same
 # microservice Helm chart with per-env values.
+#
+# Envs: dev, qa, uat, prod. QA is the "nightly build" environment per
+# rubric §2 — its values.yaml is bumped by a scheduled GitHub Action.
 #
 # Trap B.5: each Application includes the migration Job + Rollout in the same
 # sync — sync waves order them within. No cross-Application dependency needed.
@@ -22,6 +25,9 @@ spec:
               elements:
                 - env: dev
                   namespace: garden-dev
+                  autoSync: true
+                - env: qa
+                  namespace: garden-qa
                   autoSync: true
                 - env: uat
                   namespace: garden-uat

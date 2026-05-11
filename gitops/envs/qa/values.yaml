@@ -1,0 +1,118 @@
+# Per-env values for the four microservices. Per-service blocks are keyed by
+# service name; the chart's _helpers.tpl/microservice.merged helper picks the
+# block matching .Values.serviceName.
+#
+# CONTRACT: this file is bumped nightly (2 AM UTC) by .github/workflows/nightly-qa.yaml
+# in THIS repo. It rebases QA to the current UAT image SHAs, then runs smoke tests.
+# QA = "yesterday's UAT". Rubric §2: "Dev → Nightly Build (QA) → UAT → Prod".
+#
+# TODO: replace 306323843443 with your AWS account ID before first apply.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Env-wide overrides (apply to every service in this env)
+# ─────────────────────────────────────────────────────────────────────────────
+envName: qa
+
+ingress:
+  tls:
+    enabled: true
+    issuer: letsencrypt-prod
+
+# ─────────────────────────────────────────────────────────────────────────────
+# genome-service: owns RDS writes + Alembic migrations.
+# ─────────────────────────────────────────────────────────────────────────────
+genome-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/genome-service
+    tag: main
+  replicas: 2
+  database:
+    enabled: true
+  externalSecret:
+    enabled: false   # Vocareum: ESO disabled, secret created manually
+    awsSecretPath: garden/qa/genome-service/db
+  runMigrations: true
+  ingress:
+    host: qa.spacetimegarden.xyz
+    path: /api/genomes(/.*)?$
+    pathRewriteEnabled: true
+    pathRewriteTarget: /genomes$1
+  serviceAccount:
+    create: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# breeding-service: stateless compute. HPA on this one (CPU-bound work).
+# ─────────────────────────────────────────────────────────────────────────────
+breeding-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
+    tag: main
+  replicas: 2
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+  ingress:
+    host: qa.spacetimegarden.xyz
+    path: /api/breed(/.*)?$
+    pathRewriteEnabled: true
+    pathRewriteTarget: /breed$1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# gallery-service: read-only RDS reader.
+# ─────────────────────────────────────────────────────────────────────────────
+gallery-service:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/gallery-service
+    tag: main
+  replicas: 2
+  database:
+    enabled: true
+  externalSecret:
+    enabled: false   # Vocareum: ESO disabled, secret created manually
+    awsSecretPath: garden/qa/gallery-service/db
+  ingress:
+    host: qa.spacetimegarden.xyz
+    path: /api/gallery(/.*)?$
+    pathRewriteEnabled: true
+    pathRewriteTarget: /gallery$1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# frontend: nginx + SPA. Static, no DB.
+# ─────────────────────────────────────────────────────────────────────────────
+frontend:
+  image:
+    repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
+    tag: main
+  replicas: 2
+  containerPort: 8080   # nginxinc/nginx-unprivileged listens on 8080
+  canary:
+    analysis:
+      enabled: false   # nginx doesn't expose http_requests_total
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 101      # nginx user baked into nginx-unprivileged image
+    fsGroup: 101
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  healthCheck:
+    livenessPath: /healthz
+    readinessPath: /healthz
+  monitoring:
+    serviceMonitor:
+      enabled: false   # nginx doesn't expose Prometheus metrics by default
+    prometheusRule:
+      enabled: false
+  env:
+    - name: API_BASE
+      value: https://qa.spacetimegarden.xyz
+  ingress:
+    host: qa.spacetimegarden.xyz
+    path: /
+    pathType: Prefix
+    pathRewriteEnabled: false

@@ -359,7 +359,7 @@ resource "aws_route53_record" "apex" {
 # via the manual aws cli we ran earlier. Including here so re-applies are
 # idempotent.
 resource "aws_route53_record" "subdomain" {
-  for_each = toset(["dev", "uat", "argocd", "grafana"])
+  for_each = toset(["dev", "qa", "uat", "argocd", "grafana"])
 
   zone_id         = data.terraform_remote_state.shared.outputs.route53_zone_id
   name            = "${each.key}.${var.domain_name}"

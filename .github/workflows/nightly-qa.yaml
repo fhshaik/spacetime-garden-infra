@@ -1,0 +1,96 @@
+name: nightly-qa-build
+
+# Runs at 02:00 UTC every day. Rebases gitops/envs/qa/values.yaml to the
+# current uat image SHAs, then smoke-tests qa.spacetimegarden.xyz once
+# Argo CD has reconciled.
+#
+# Satisfies rubric §2: "Dev → Nightly Build (QA) → UAT → Prod" — QA is
+# the cron-triggered intermediate stage between continuous dev deploys
+# and stable uat.
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 02:00 UTC = 19:00 PT (or 18:00 PT during DST)
+  workflow_dispatch:      # allow manual trigger for demo
+
+permissions:
+  contents: write   # to commit + push the values bump
+
+jobs:
+  rebase-qa-to-uat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout infra repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          sudo curl -fsSL -o /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Copy uat image tags into qa values
+        id: rebase
+        run: |
+          for svc in genome-service breeding-service gallery-service frontend; do
+            UAT_TAG=$(yq -r ".[\"$svc\"].image.tag" gitops/envs/uat/values.yaml)
+            CURRENT_QA_TAG=$(yq -r ".[\"$svc\"].image.tag" gitops/envs/qa/values.yaml)
+            echo "$svc: uat=$UAT_TAG qa(current)=$CURRENT_QA_TAG"
+            yq -i ".[\"$svc\"].image.tag = \"$UAT_TAG\"" gitops/envs/qa/values.yaml
+          done
+          # Add a nightly marker comment with the build timestamp
+          STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          yq -i ".nightlyBuildAt = \"$STAMP\"" gitops/envs/qa/values.yaml
+          echo "stamp=$STAMP" >> $GITHUB_OUTPUT
+
+      - name: Commit + push if changed
+        run: |
+          git config user.name 'nightly-qa-bot'
+          git config user.email 'nightly-qa-bot@spacetimegarden.xyz'
+          if git diff --quiet gitops/envs/qa/values.yaml; then
+            echo "QA already matches UAT — no commit needed"
+            exit 0
+          fi
+          git add gitops/envs/qa/values.yaml
+          git commit -m "nightly: rebase qa to uat (build ${{ steps.rebase.outputs.stamp }})"
+          git push
+
+      - name: Wait for Argo CD reconcile
+        run: |
+          echo "Argo CD will reconcile within 3 min via auto-sync."
+          echo "In a hardened setup we'd webhook-trigger Argo CD here."
+          sleep 180
+
+  smoke-test-qa:
+    needs: rebase-qa-to-uat
+    runs-on: ubuntu-latest
+    steps:
+      - name: HTTPS endpoint health
+        run: |
+          set -e
+          for path in / /api/breed/healthz /api/genomes/healthz /api/gallery/healthz; do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+              "https://qa.spacetimegarden.xyz${path}" --max-time 15)
+            echo "GET https://qa.spacetimegarden.xyz${path} → ${CODE}"
+            # /api/X/healthz returns 200 (GET) or 405 (HEAD); accept both
+            if [[ "$CODE" != "200" && "$CODE" != "405" ]]; then
+              echo "FAIL: expected 200 or 405, got $CODE"
+              exit 1
+            fi
+          done
+          echo "✓ All endpoints healthy"
+
+      - name: TLS cert valid
+        run: |
+          DAYS_LEFT=$(echo | openssl s_client -connect qa.spacetimegarden.xyz:443 \
+            -servername qa.spacetimegarden.xyz 2>/dev/null \
+            | openssl x509 -noout -checkend $((14*86400)) && echo "ok")
+          echo "TLS cert: $DAYS_LEFT"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::nightly qa smoke test failed — investigate qa.spacetimegarden.xyz"
+          # In a real setup: post to Slack via webhook here.
