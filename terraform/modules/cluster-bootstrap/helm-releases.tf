@@ -208,7 +208,7 @@ resource "helm_release" "kube_prometheus_stack" {
   namespace        = "monitoring"
   create_namespace = false
   atomic           = true
-  timeout          = 1200   # CRD install + admission webhook startup is slow
+  timeout          = 1200 # CRD install + admission webhook startup is slow
 
   values = compact([
     file("${var.platform_values_path}/kube-prometheus-stack.values.yaml"),
@@ -251,7 +251,7 @@ resource "helm_release" "kube_prometheus_stack" {
           }]
         }
       }
-    }) : yamlencode({
+      }) : yamlencode({
       grafana = {
         ingress = {
           enabled          = true

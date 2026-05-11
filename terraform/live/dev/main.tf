@@ -174,22 +174,22 @@ resource "aws_eks_cluster" "this" {
 
 # AWS-managed cluster addons. ebs-csi-driver skipped (needs IRSA).
 resource "aws_eks_addon" "coredns" {
-  cluster_name = aws_eks_cluster.this.name
-  addon_name   = "coredns"
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "coredns"
   resolve_conflicts_on_update = "OVERWRITE"
 
   depends_on = [aws_eks_node_group.default]
 }
 
 resource "aws_eks_addon" "kube_proxy" {
-  cluster_name = aws_eks_cluster.this.name
-  addon_name   = "kube-proxy"
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "kube-proxy"
   resolve_conflicts_on_update = "OVERWRITE"
 }
 
 resource "aws_eks_addon" "vpc_cni" {
-  cluster_name = aws_eks_cluster.this.name
-  addon_name   = "vpc-cni"
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "vpc-cni"
   resolve_conflicts_on_update = "OVERWRITE"
 }
 
@@ -218,10 +218,10 @@ resource "aws_eks_node_group" "default" {
 # Compatibility shim: cluster-bootstrap module + provider blocks expect
 # `module.eks.cluster_*` outputs. We expose them via locals.
 locals {
-  cluster_endpoint_resolved        = aws_eks_cluster.this.endpoint
-  cluster_ca_certificate_data      = aws_eks_cluster.this.certificate_authority[0].data
-  cluster_name_resolved            = aws_eks_cluster.this.name
-  node_security_group_id_resolved  = aws_security_group.node.id
+  cluster_endpoint_resolved       = aws_eks_cluster.this.endpoint
+  cluster_ca_certificate_data     = aws_eks_cluster.this.certificate_authority[0].data
+  cluster_name_resolved           = aws_eks_cluster.this.name
+  node_security_group_id_resolved = aws_security_group.node.id
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -231,8 +231,8 @@ locals {
 # ─────────────────────────────────────────────────────────────────────────────
 
 resource "random_password" "rds_master" {
-  length           = 32
-  special          = true
+  length  = 32
+  special = true
   # Alphanumeric + safe chars only. % breaks Alembic configparser; @:/?# break URLs.
   override_special = "-_"
 }
@@ -245,14 +245,14 @@ module "rds" {
   source  = "terraform-aws-modules/rds/aws"
   version = "~> 6.7"
 
-  identifier        = "garden-${local.env}"
-  engine            = "postgres"
-  engine_version    = "16"
-  family            = "postgres16"
+  identifier           = "garden-${local.env}"
+  engine               = "postgres"
+  engine_version       = "16"
+  family               = "postgres16"
   major_engine_version = "16"
-  instance_class    = var.rds_instance_class
-  allocated_storage = var.rds_allocated_storage
-  storage_encrypted = true
+  instance_class       = var.rds_instance_class
+  allocated_storage    = var.rds_allocated_storage
+  storage_encrypted    = true
 
   db_name  = "garden"
   username = "garden_admin"
@@ -366,7 +366,7 @@ resource "aws_route53_record" "subdomain" {
   type            = "CNAME"
   ttl             = 60
   records         = [local.nlb_hostname]
-  allow_overwrite = true   # records pre-existed from earlier manual CLI
+  allow_overwrite = true # records pre-existed from earlier manual CLI
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -394,12 +394,12 @@ module "cluster_bootstrap" {
   # External LE servers fetch /.well-known/acme-challenge/<token> through the
   # public NLB → ingress-nginx → cert-manager solver pod. Zero AWS API calls.
   enable_cert_manager        = true
-  cert_manager_dns01_enabled = false   # HTTP-01 mode
+  cert_manager_dns01_enabled = false # HTTP-01 mode
 
   # Still disabled (genuinely need IRSA / not worth the workaround time):
-  enable_external_dns     = false   # using manual Route53 records
-  enable_external_secrets = false   # using kubectl create secret
-  enable_loki             = false   # times out; skipping for demo
+  enable_external_dns     = false # using manual Route53 records
+  enable_external_secrets = false # using kubectl create secret
+  enable_loki             = false # times out; skipping for demo
 
   tags = local.tags
 

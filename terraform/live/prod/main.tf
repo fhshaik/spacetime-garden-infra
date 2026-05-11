@@ -82,7 +82,7 @@ module "eks" {
       most_recent = true
     }
     aws-ebs-csi-driver = {
-      most_recent = true
+      most_recent              = true
       service_account_role_arn = module.ebs_csi_irsa.iam_role_arn
     }
   }
@@ -231,8 +231,8 @@ resource "aws_secretsmanager_secret" "service_db" {
 }
 
 resource "aws_secretsmanager_secret_version" "service_db" {
-  for_each      = aws_secretsmanager_secret.service_db
-  secret_id     = each.value.id
+  for_each  = aws_secretsmanager_secret.service_db
+  secret_id = each.value.id
   secret_string = jsonencode({
     DATABASE_URL = "postgresql+psycopg://garden_admin:${random_password.rds_master.result}@${module.rds.db_instance_address}:5432/garden"
   })
@@ -240,12 +240,12 @@ resource "aws_secretsmanager_secret_version" "service_db" {
 
 # Placeholder secrets the user fills in manually post-apply.
 resource "aws_secretsmanager_secret" "alertmanager_smtp" {
-  name = "garden/${local.env}/alertmanager/smtp"
+  name        = "garden/${local.env}/alertmanager/smtp"
   description = "Gmail SMTP app password — fill in via console or aws cli"
 }
 
 resource "aws_secretsmanager_secret" "grafana_oauth" {
-  name = "garden/${local.env}/grafana/oauth"
+  name        = "garden/${local.env}/grafana/oauth"
   description = "GitHub OAuth client_id + client_secret for Grafana — fill in via console"
 }
 
