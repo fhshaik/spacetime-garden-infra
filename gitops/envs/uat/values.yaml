@@ -9,7 +9,7 @@ ingress:
 genome-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/genome-service
-    tag: main
+    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
   replicas: 2
   database:
     enabled: true
@@ -25,7 +25,7 @@ genome-service:
 breeding-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
-    tag: main
+    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
   replicas: 2
   hpa:
     enabled: true
@@ -39,7 +39,7 @@ breeding-service:
 gallery-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/gallery-service
-    tag: main
+    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
   replicas: 2
   database:
     enabled: true
@@ -54,7 +54,7 @@ gallery-service:
 frontend:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
-    tag: main
+    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
   replicas: 2
   containerPort: 8080
   canary:
