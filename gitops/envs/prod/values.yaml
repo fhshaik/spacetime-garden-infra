@@ -3,26 +3,23 @@
 # TODO: replace 306323843443 with your AWS account ID.
 
 envName: prod
-
 ingress:
   tls:
     enabled: true
     issuer: letsencrypt-prod
-
 # Prod runs more replicas + tighter resource limits.
 resources:
-  requests: { cpu: 200m, memory: 256Mi }
-  limits:   { cpu: 1000m, memory: 512Mi }
-
+  requests: {cpu: 200m, memory: 256Mi}
+  limits: {cpu: 1000m, memory: 512Mi}
 genome-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/genome-service
-    tag: main
+    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
   replicas: 3
   database:
     enabled: true
   externalSecret:
-    enabled: false   # Vocareum: ESO disabled
+    enabled: false # Vocareum: ESO disabled
     awsSecretPath: garden/prod/genome-service/db
   runMigrations: true
   ingress:
@@ -30,11 +27,10 @@ genome-service:
     path: /api/genomes(/.*)?$
     pathRewriteEnabled: true
     pathRewriteTarget: /genomes$1
-
 breeding-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
-    tag: main
+    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
   replicas: 3
   hpa:
     enabled: true
@@ -45,27 +41,25 @@ breeding-service:
     path: /api/breed(/.*)?$
     pathRewriteEnabled: true
     pathRewriteTarget: /breed$1
-
 gallery-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/gallery-service
-    tag: main
+    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
   replicas: 3
   database:
     enabled: true
   externalSecret:
-    enabled: false   # Vocareum: ESO disabled
+    enabled: false # Vocareum: ESO disabled
     awsSecretPath: garden/prod/gallery-service/db
   ingress:
     host: spacetimegarden.xyz
     path: /api/gallery(/.*)?$
     pathRewriteEnabled: true
     pathRewriteTarget: /gallery$1
-
 frontend:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
-    tag: main
+    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
   replicas: 3
   containerPort: 8080
   canary:
@@ -85,8 +79,8 @@ frontend:
     livenessPath: /healthz
     readinessPath: /healthz
   monitoring:
-    serviceMonitor: { enabled: false }
-    prometheusRule: { enabled: false }
+    serviceMonitor: {enabled: false}
+    prometheusRule: {enabled: false}
   env:
     - name: API_BASE
       value: https://spacetimegarden.xyz
