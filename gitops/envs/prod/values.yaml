@@ -14,7 +14,7 @@ resources:
 genome-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/genome-service
-    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
+    tag: c4b1cc4a2564fd01a09a126684fb68c7b94381e8
   replicas: 3
   database:
     enabled: true
@@ -30,7 +30,7 @@ genome-service:
 breeding-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
-    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
+    tag: c4b1cc4a2564fd01a09a126684fb68c7b94381e8
   replicas: 3
   hpa:
     enabled: true
@@ -44,7 +44,7 @@ breeding-service:
 gallery-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/gallery-service
-    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
+    tag: c4b1cc4a2564fd01a09a126684fb68c7b94381e8
   replicas: 3
   database:
     enabled: true
@@ -59,7 +59,7 @@ gallery-service:
 frontend:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
-    tag: 8bd66edfbaf7c379a94e7ecadf21f15f991eb6c6
+    tag: c4b1cc4a2564fd01a09a126684fb68c7b94381e8
   replicas: 3
   containerPort: 8080
   canary:
