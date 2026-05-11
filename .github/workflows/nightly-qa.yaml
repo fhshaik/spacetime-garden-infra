@@ -70,16 +70,32 @@ jobs:
       - name: HTTPS endpoint health
         run: |
           set -e
-          for path in / /api/breed/healthz /api/genomes/healthz /api/gallery/healthz; do
-            CODE=$(curl -s -o /dev/null -w '%{http_code}' \
-              "https://qa.spacetimegarden.xyz${path}" --max-time 15)
-            echo "GET https://qa.spacetimegarden.xyz${path} → ${CODE}"
-            # /api/X/healthz returns 200 (GET) or 405 (HEAD); accept both
-            if [[ "$CODE" != "200" && "$CODE" != "405" ]]; then
-              echo "FAIL: expected 200 or 405, got $CODE"
-              exit 1
-            fi
-          done
+          BASE=https://qa.spacetimegarden.xyz
+
+          # 1. Frontend
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/" --max-time 15)
+          echo "GET $BASE/ → $CODE"
+          [[ "$CODE" == "200" ]] || { echo "FAIL frontend"; exit 1; }
+
+          # 2. genome-service: GET /api/genomes returns JSON list
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/genomes" --max-time 15)
+          echo "GET $BASE/api/genomes → $CODE"
+          [[ "$CODE" == "200" ]] || { echo "FAIL genome"; exit 1; }
+
+          # 3. gallery-service: GET /api/gallery returns JSON list
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/gallery" --max-time 15)
+          echo "GET $BASE/api/gallery → $CODE"
+          [[ "$CODE" == "200" ]] || { echo "FAIL gallery"; exit 1; }
+
+          # 4. breeding-service: POST /api/breed with empty parents returns 422 (validation error)
+          # That's "handler reached" — the routing chain through ingress-nginx works.
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+            -X POST -H 'Content-Type: application/json' \
+            -d '{"parents":[]}' \
+            "$BASE/api/breed" --max-time 15)
+          echo "POST $BASE/api/breed (empty) → $CODE  (expected 422)"
+          [[ "$CODE" == "422" ]] || { echo "FAIL breed"; exit 1; }
+
           echo "✓ All endpoints healthy"
 
       - name: TLS cert valid
