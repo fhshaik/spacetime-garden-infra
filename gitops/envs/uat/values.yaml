@@ -25,7 +25,7 @@ genome-service:
 breeding-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
-    tag: demo-broken-v2
+    tag: main
   replicas: 2
   hpa:
     enabled: true
