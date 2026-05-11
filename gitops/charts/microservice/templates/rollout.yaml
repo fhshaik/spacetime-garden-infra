@@ -66,7 +66,7 @@ spec:
           - name: namespace
             value: {{ include "microservice.namespace" . }}
           - name: service
-            value: {{ include "microservice.fullname" . }}-stable
+            value: {{ include "microservice.fullname" . }}-canary
       {{- end }}
       steps:
         {{- toYaml $v.canary.steps | nindent 8 }}
