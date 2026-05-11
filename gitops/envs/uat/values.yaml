@@ -2,12 +2,10 @@
 # TODO: replace 306323843443 with your AWS account ID.
 
 envName: uat
-
 ingress:
   tls:
     enabled: true
     issuer: letsencrypt-prod
-
 genome-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/genome-service
@@ -16,7 +14,7 @@ genome-service:
   database:
     enabled: true
   externalSecret:
-    enabled: false   # Vocareum: ESO disabled
+    enabled: false # Vocareum: ESO disabled
     awsSecretPath: garden/uat/genome-service/db
   runMigrations: true
   ingress:
@@ -24,11 +22,10 @@ genome-service:
     path: /api/genomes(/.*)?$
     pathRewriteEnabled: true
     pathRewriteTarget: /genomes$1
-
 breeding-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/breeding-service
-    tag: main
+    tag: demo-broken-v2
   replicas: 2
   hpa:
     enabled: true
@@ -39,7 +36,6 @@ breeding-service:
     path: /api/breed(/.*)?$
     pathRewriteEnabled: true
     pathRewriteTarget: /breed$1
-
 gallery-service:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/gallery-service
@@ -48,14 +44,13 @@ gallery-service:
   database:
     enabled: true
   externalSecret:
-    enabled: false   # Vocareum: ESO disabled
+    enabled: false # Vocareum: ESO disabled
     awsSecretPath: garden/uat/gallery-service/db
   ingress:
     host: uat.spacetimegarden.xyz
     path: /api/gallery(/.*)?$
     pathRewriteEnabled: true
     pathRewriteTarget: /gallery$1
-
 frontend:
   image:
     repository: 306323843443.dkr.ecr.us-east-1.amazonaws.com/frontend
@@ -79,8 +74,8 @@ frontend:
     livenessPath: /healthz
     readinessPath: /healthz
   monitoring:
-    serviceMonitor: { enabled: false }
-    prometheusRule: { enabled: false }
+    serviceMonitor: {enabled: false}
+    prometheusRule: {enabled: false}
   env:
     - name: API_BASE
       value: https://uat.spacetimegarden.xyz
