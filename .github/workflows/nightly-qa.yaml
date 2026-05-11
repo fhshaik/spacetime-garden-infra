@@ -65,7 +65,17 @@ jobs:
           fi
           git add gitops/envs/qa/values.yaml
           git commit -m "nightly: rebase qa from dev (build ${{ steps.rebase.outputs.stamp }})"
-          git push
+          # Retry-with-rebase to handle race against parallel promote-* workflows
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              exit 0
+            fi
+            echo "push attempt $attempt failed — rebasing and retrying"
+            git pull --rebase origin main || true
+            sleep 3
+          done
+          echo "::error::push failed after 5 retries"
+          exit 1
 
       - name: Wait for Argo CD reconcile of QA
         run: |
@@ -153,7 +163,17 @@ jobs:
           fi
           git add gitops/envs/uat/values.yaml
           git commit -m "nightly: promote qa→uat after smoke tests (build ${{ steps.promote.outputs.stamp }})"
-          git push
+          # Retry-with-rebase to handle race against parallel promote-* workflows
+          for attempt in 1 2 3 4 5; do
+            if git push; then
+              exit 0
+            fi
+            echo "push attempt $attempt failed — rebasing and retrying"
+            git pull --rebase origin main || true
+            sleep 3
+          done
+          echo "::error::push failed after 5 retries"
+          exit 1
 
   notify-on-failure:
     name: Emit failure marker if any stage failed
