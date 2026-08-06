@@ -111,4 +111,4 @@ frontend:
     path: /
     pathType: Prefix
     pathRewriteEnabled: false
-nightlyBuildAt: "2026-08-05T05:12:10Z"
+nightlyBuildAt: "2026-08-06T05:13:38Z"
